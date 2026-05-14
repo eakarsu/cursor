@@ -1,0 +1,204 @@
+{
+  "name": "ai-assistant",
+  "displayName": "AI Assistant",
+  "description": "Built-in AI: chat, agent, cmd-k, composer, codebase index, MCP, rules, tab predictions",
+  "version": "0.0.1",
+  "publisher": "vscode",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": ["Other"],
+  "private": true,
+  "activationEvents": ["onStartupFinished"],
+  "main": "./out/extension.js",
+  "contributes": {
+    "configuration": {
+      "type": "object",
+      "title": "AI Assistant",
+      "properties": {
+        "aiAssistant.apiKey": {
+          "type": "string",
+          "default": "",
+          "description": "Anthropic API key. Prefer ANTHROPIC_API_KEY env var.",
+          "scope": "application"
+        },
+        "aiAssistant.openaiApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "Optional OpenAI API key for fallback routing.",
+          "scope": "application"
+        },
+        "aiAssistant.models.chat": {
+          "type": "string",
+          "default": "claude-opus-4-7",
+          "description": "Model for chat / agent."
+        },
+        "aiAssistant.models.completions": {
+          "type": "string",
+          "default": "claude-haiku-4-5-20251001",
+          "description": "Model for inline completions / tab prediction."
+        },
+        "aiAssistant.models.cmdK": {
+          "type": "string",
+          "default": "claude-sonnet-4-6",
+          "description": "Model for Cmd-K inline edits."
+        },
+        "aiAssistant.inlineCompletions.enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "aiAssistant.tabPrediction.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Predict the next edit using a fast model."
+        },
+        "aiAssistant.codebaseIndex.enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "aiAssistant.codebaseIndex.maxFileBytes": {
+          "type": "number",
+          "default": 200000
+        },
+        "aiAssistant.mcp.servers": {
+          "type": "object",
+          "default": {},
+          "description": "MCP server config: { name: { command, args, env } } or { name: { url } }"
+        },
+        "aiAssistant.voyageApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "Voyage AI API key (preferred for code embeddings).",
+          "scope": "application"
+        },
+        "aiAssistant.embeddings.voyageModel": {
+          "type": "string",
+          "default": "voyage-code-3",
+          "description": "Voyage embedding model id."
+        },
+        "aiAssistant.embeddings.openaiModel": {
+          "type": "string",
+          "default": "text-embedding-3-small",
+          "description": "OpenAI embedding model id (used if Voyage key absent)."
+        },
+        "aiAssistant.cloudEndpoint": {
+          "type": "string",
+          "default": "",
+          "description": "Backend base URL (auth, sync, billing, proxy). Leave empty to disable."
+        },
+        "aiAssistant.telemetryEndpoint": {
+          "type": "string",
+          "default": "",
+          "description": "Telemetry collector URL (typically <cloudEndpoint>/telemetry)."
+        },
+        "aiAssistant.telemetry.enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Send anonymous usage events to telemetryEndpoint."
+        },
+        "aiAssistant.tabModelEndpoint": {
+          "type": "string",
+          "default": "",
+          "description": "OpenAI-compatible endpoint serving the fine-tuned tab model. Empty = use Claude Haiku fallback."
+        },
+        "aiAssistant.backend": {
+          "type": "string",
+          "enum": ["api", "claudeCode"],
+          "default": "api",
+          "description": "How to reach Anthropic. 'api' uses sk-ant-... credits. 'claudeCode' shells out to the Claude Code CLI and uses your Max/Pro subscription (no API credits needed; tool-use disabled)."
+        },
+        "aiAssistant.claudeCli": {
+          "type": "string",
+          "default": "claude",
+          "description": "Path to the Claude Code CLI binary. Used only when backend = claudeCode."
+        },
+        "aiAssistant.agent.claudeCodeAutoApprove": {
+          "type": "boolean",
+          "default": true,
+          "description": "When backend = claudeCode, auto-approve tool actions in the agent (the CLI cannot stream approval prompts in non-interactive mode). Disable to require running the CLI interactively."
+        },
+        "aiAssistant.agent.allowedTools": {
+          "type": "string",
+          "default": "",
+          "description": "Comma-separated allowlist of CLI tools (Read,Write,Edit,Bash,Grep,Glob,WebFetch,WebSearch). Empty = all tools allowed. Used only when backend = claudeCode."
+        },
+        "aiAssistant.privacyMode": {
+          "type": "boolean",
+          "default": false,
+          "description": "Disable cloud sync, telemetry, and codebase context attachments. Local-only operation."
+        }
+      }
+    },
+    "commands": [
+      { "command": "aiAssistant.openChat", "title": "AI: Open Chat", "category": "AI" },
+      { "command": "aiAssistant.explainSelection", "title": "AI: Explain Selection", "category": "AI" },
+      { "command": "aiAssistant.cmdK", "title": "AI: Edit (Cmd-K)", "category": "AI" },
+      { "command": "aiAssistant.openComposer", "title": "AI: Open Composer", "category": "AI" },
+      { "command": "aiAssistant.openAgent", "title": "AI: Open Agent", "category": "AI" },
+      { "command": "aiAssistant.runAgent", "title": "AI: Run Agent on Task...", "category": "AI" },
+      { "command": "aiAssistant.indexWorkspace", "title": "AI: Reindex Workspace", "category": "AI" },
+      { "command": "aiAssistant.editRules", "title": "AI: Edit Rules", "category": "AI" },
+      { "command": "aiAssistant.editMemory", "title": "AI: Edit Project Memory", "category": "AI" },
+      { "command": "aiAssistant.acceptTabPrediction", "title": "AI: Accept Tab Prediction", "category": "AI" },
+      { "command": "aiAssistant.connectMcp", "title": "AI: Reconnect MCP Servers", "category": "AI" },
+      { "command": "aiAssistant.signIn", "title": "AI: Sign In", "category": "AI" },
+      { "command": "aiAssistant.signOut", "title": "AI: Sign Out", "category": "AI" },
+      { "command": "aiAssistant.syncMemoryPush", "title": "AI: Push Memory to Cloud", "category": "AI" },
+      { "command": "aiAssistant.syncMemoryPull", "title": "AI: Pull Memory from Cloud", "category": "AI" },
+      { "command": "aiAssistant.findBugs", "title": "AI: Find Bugs in File", "category": "AI" },
+      { "command": "aiAssistant.clearBugs", "title": "AI: Clear AI Diagnostics", "category": "AI" },
+      { "command": "aiAssistant.editNotepads", "title": "AI: Edit Notepads", "category": "AI" },
+      { "command": "aiAssistant.multiCursorEdit", "title": "AI: Multi-cursor Edit (find & replace all)", "category": "AI" },
+      { "command": "aiAssistant.terminalCmdK", "title": "AI: Generate Terminal Command (Cmd-K in terminal)", "category": "AI" },
+      { "command": "aiAssistant.applyFromClipboard", "title": "AI: Apply Code from Clipboard", "category": "AI" },
+      { "command": "aiAssistant.reviewPr", "title": "AI: Review Pull Request", "category": "AI" },
+      { "command": "aiAssistant.runBackgroundAgent", "title": "AI: Run Background Agent", "category": "AI" },
+      { "command": "aiAssistant.showBackgroundAgents", "title": "AI: Show Background Agents", "category": "AI" },
+      { "command": "aiAssistant.openSettings", "title": "AI: Open Settings UI", "category": "AI" },
+      { "command": "aiAssistant.predictCrossFile", "title": "AI: Predict Cross-file Edits", "category": "AI" },
+      { "command": "aiAssistant.shadowApply", "title": "AI: Shadow-test current file (sandbox)", "category": "AI" },
+      { "command": "aiAssistant.showWelcome", "title": "AI: Welcome / Onboarding", "category": "AI" },
+      { "command": "aiAssistant.editIgnore", "title": "AI: Edit Indexing Exclusions (.aicodeignore)", "category": "AI" },
+      { "command": "aiAssistant.screenshotToComponent", "title": "AI: Screenshot → Component", "category": "AI" },
+      { "command": "aiAssistant.showBilling", "title": "AI: Billing & Usage", "category": "AI" },
+      { "command": "aiAssistant.slackSetup", "title": "AI: Set up Slack MCP", "category": "AI" },
+      { "command": "aiAssistant.installGithubAction", "title": "AI: Install GitHub PR-Review Action", "category": "AI" },
+      { "command": "aiAssistant.runCloudAgent", "title": "AI: Run Cloud Agent (open PR)", "category": "AI" }
+    ],
+    "keybindings": [
+      { "command": "aiAssistant.cmdK", "key": "cmd+k", "mac": "cmd+k", "when": "editorTextFocus" },
+      { "command": "aiAssistant.terminalCmdK", "key": "cmd+k", "mac": "cmd+k", "when": "terminalFocus" },
+      { "command": "aiAssistant.openChat", "key": "cmd+l", "mac": "cmd+l" },
+      { "command": "aiAssistant.openComposer", "key": "cmd+i", "mac": "cmd+i" },
+      { "command": "aiAssistant.acceptTabPrediction", "key": "tab", "when": "aiAssistant.tabPrediction.visible && editorTextFocus" }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "ai-assistant",
+          "title": "AI Assistant",
+          "icon": "$(sparkle)"
+        }
+      ]
+    },
+    "views": {
+      "ai-assistant": [
+        { "type": "webview", "id": "aiAssistant.chatView", "name": "Chat", "icon": "$(comment)" },
+        { "type": "webview", "id": "aiAssistant.agentView", "name": "Agent", "icon": "$(robot)" },
+        { "type": "webview", "id": "aiAssistant.composerView", "name": "Composer", "icon": "$(files)" }
+      ]
+    },
+    "menus": {
+      "editor/context": [
+        { "command": "aiAssistant.cmdK", "when": "editorTextFocus", "group": "1_modification@98" },
+        { "command": "aiAssistant.explainSelection", "when": "editorHasSelection", "group": "1_modification@99" }
+      ]
+    }
+  },
+  "scripts": {
+    "compile": "gulp compile-extension:ai-assistant",
+    "watch": "gulp watch-extension:ai-assistant",
+    "test": "tsc -p . && node --test test/core.test.js"
+  }
+}
