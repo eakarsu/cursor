@@ -1,0 +1,30 @@
+# Big subdirectories we don't track
+vscode/
+node_modules/
+__pycache__/
+.next/
+dist/
+build/
+coverage/
+.cache/
+*.log
+
+# Secrets
+.env
+.env.local
+.env.production
+.env.development
+.env.staging
+token.txt
+tokens.txt
+credentials.json
+credentials.yaml
+secrets.json
+secrets.yaml
+*.pem
+*.key
+*.crt
+*.p12
+
+# OS
+.DS_Store
