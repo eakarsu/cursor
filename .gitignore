@@ -1,5 +1,20 @@
-# Big subdirectories we don't track
-vscode/
+# vscode/ — only track our customizations, ignore the upstream source
+vscode/**
+!vscode/build/
+!vscode/build/gulpfile.extensions.ts
+!vscode/build/npm/
+!vscode/build/npm/dirs.ts
+!vscode/product.json
+!vscode/extensions/
+!vscode/extensions/ai-assistant/
+!vscode/extensions/ai-assistant/**
+
+# Inside the extension, still exclude noise
+vscode/extensions/ai-assistant/node_modules/
+vscode/extensions/ai-assistant/out/
+vscode/extensions/ai-assistant/*.tsbuildinfo
+
+# Generic excludes
 node_modules/
 __pycache__/
 .next/
@@ -26,5 +41,4 @@ secrets.yaml
 *.crt
 *.p12
 
-# OS
 .DS_Store
