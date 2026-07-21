@@ -12,11 +12,12 @@ npm run dev
 ```
 
 Required env:
-- `JWT_SECRET` — for session tokens
+- `JWT_SECRET` — unique random value of at least 32 characters
 - `ANTHROPIC_API_KEY` — proxied for users
 - `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` — OAuth app
 - `PUBLIC_URL` — e.g. `http://localhost:8787`
 - `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` / `STRIPE_PRO_PRICE_ID` — for billing (optional)
+- `HOST` / `PORT` — local bind defaults to `127.0.0.1:8787`
 
 ## Endpoints
 
@@ -28,10 +29,11 @@ Required env:
 - `POST /billing/webhook` — Stripe webhook
 - `POST /sync/memory` / `GET /sync/memory?workspace=...` — sync `.aicode/memory.md`, `rules.md`
 - `POST /jobs` / `GET /jobs/:id` — queue background agent jobs (executor not included)
-- `POST /telemetry` — batched event ingest
+- `POST /telemetry` — authenticated, tenant-scoped batched event ingest
 
 ## What's still stubbed
 
 - Job executor: rows are written but nothing pulls and runs them. Plug in Fly Machines, Modal, or a worker pool.
 - Email auth: only GitHub OAuth wired up.
 - Embedding/index sync: not implemented; index lives client-side.
+- Production rate limiting, migrations, backups, retention controls, and deployment monitoring are not included.

@@ -4,10 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "./scripts/run-compatible-node.sh node_modules/tsx/dist/cli.mjs watch src/index.ts",
     "start": "node --enable-source-maps dist/index.js",
     "build": "tsc -p tsconfig.json",
-    "test": "node --test --import tsx src/*.test.ts"
+    "test": "./scripts/run-compatible-node.sh --test --import tsx src/*.test.ts",
+    "create-admin": "./scripts/run-compatible-node.sh node_modules/tsx/dist/cli.mjs scripts/create-admin.ts"
   },
   "dependencies": {
     "hono": "^4.6.0",

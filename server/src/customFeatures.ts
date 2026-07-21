@@ -20,7 +20,10 @@ customFeatures.post('/routing', async (c) => {
 	const userId = c.get('userId') as string;
 	const body = await c.req.json().catch(() => ({} as any));
 	const { default_model, rules } = body || {};
-	if (!default_model) return c.json({ error: 'default_model required' }, 400);
+	if (typeof default_model !== 'string' || default_model.length < 1 || default_model.length > 100 || (rules != null && (!Array.isArray(rules) || rules.length > 100))) {
+		return c.json({ error: 'invalid default_model or rules' }, 400);
+	}
+	if (JSON.stringify(rules || []).length > 100_000) return c.json({ error: 'rules are too large' }, 413);
 	tenantRouting.set(userId, { default_model, rules: Array.isArray(rules) ? rules : [] });
 	return c.json({ ok: true, tenant: userId, default_model, rules: rules || [] });
 });
@@ -36,7 +39,9 @@ customFeatures.post('/spend-cap', async (c) => {
 	const body = await c.req.json().catch(() => ({} as any));
 	const daily_usd = Number(body?.daily_usd);
 	const alert_pct = Number(body?.alert_pct ?? 80);
-	if (!Number.isFinite(daily_usd) || daily_usd <= 0) return c.json({ error: 'daily_usd required > 0' }, 400);
+	if (!Number.isFinite(daily_usd) || daily_usd <= 0 || daily_usd > 100_000 || !Number.isFinite(alert_pct) || alert_pct < 1 || alert_pct > 100) {
+		return c.json({ error: 'invalid daily_usd or alert_pct' }, 400);
+	}
 	spendCaps.set(userId, { daily_usd, alert_pct });
 	return c.json({ ok: true, tenant: userId, daily_usd, alert_pct });
 });
@@ -50,11 +55,15 @@ customFeatures.get('/spend-cap', async (c) => {
 customFeatures.post('/templates/:name', async (c) => {
 	const userId = c.get('userId') as string;
 	const name = c.req.param('name');
+	if (!/^[A-Za-z0-9._-]{1,100}$/.test(name)) return c.json({ error: 'invalid template name' }, 400);
 	const body = await c.req.json().catch(() => ({} as any));
 	const { template_body } = body || {};
-	if (!template_body) return c.json({ error: 'template_body required' }, 400);
+	if (typeof template_body !== 'string' || template_body.length < 1 || template_body.length > 100_000) {
+		return c.json({ error: 'invalid template_body' }, 400);
+	}
 	const key = `${userId}:${name}`;
 	const existing = promptTemplates.get(key) || { versions: [] };
+	if (existing.versions.length >= 100) return c.json({ error: 'template version limit reached' }, 409);
 	const v = existing.versions.length + 1;
 	existing.versions.push({ v, body: template_body, createdAt: new Date().toISOString() });
 	promptTemplates.set(key, existing);
@@ -63,7 +72,9 @@ customFeatures.post('/templates/:name', async (c) => {
 
 customFeatures.get('/templates/:name', async (c) => {
 	const userId = c.get('userId') as string;
-	const key = `${userId}:${c.req.param('name')}`;
+	const name = c.req.param('name');
+	if (!/^[A-Za-z0-9._-]{1,100}$/.test(name)) return c.json({ error: 'invalid template name' }, 400);
+	const key = `${userId}:${name}`;
 	return c.json(promptTemplates.get(key) || { versions: [] });
 });
 
@@ -72,7 +83,7 @@ customFeatures.get('/templates/:name', async (c) => {
 customFeatures.post('/privacy/redact', async (c) => {
 	const body = await c.req.json().catch(() => ({} as any));
 	const { text } = body || {};
-	if (typeof text !== 'string') return c.json({ error: 'text required' }, 400);
+	if (typeof text !== 'string' || text.length > 100_000) return c.json({ error: 'invalid text' }, 400);
 	// Conservative regex-only v0: emails, US phones, simple SSN, credit-card-ish.
 	let redacted = text;
 	const spans: { start: number; end: number; class: string }[] = [];
@@ -97,10 +108,12 @@ customFeatures.post('/privacy/redact', async (c) => {
 
 // 5. Edge cache for deterministic prompts
 customFeatures.post('/cache/get', async (c) => {
+	const userId = c.get('userId') as string;
 	const body = await c.req.json().catch(() => ({} as any));
 	const { key } = body || {};
-	if (!key) return c.json({ error: 'key required' }, 400);
-	const hit = promptCache.get(key);
+	if (typeof key !== 'string' || key.length < 1 || key.length > 200) return c.json({ error: 'invalid key' }, 400);
+	const scopedKey = `${userId}:${key}`;
+	const hit = promptCache.get(scopedKey);
 	if (!hit || Date.now() - hit.createdAt > CACHE_TTL_MS) {
 		return c.json({ hit: false });
 	}
@@ -108,9 +121,13 @@ customFeatures.post('/cache/get', async (c) => {
 });
 
 customFeatures.post('/cache/put', async (c) => {
+	const userId = c.get('userId') as string;
 	const body = await c.req.json().catch(() => ({} as any));
 	const { key, response } = body || {};
-	if (!key || response == null) return c.json({ error: 'key and response required' }, 400);
-	promptCache.set(key, { response, createdAt: Date.now() });
+	if (typeof key !== 'string' || key.length < 1 || key.length > 200 || response == null) {
+		return c.json({ error: 'invalid key or response' }, 400);
+	}
+	if (JSON.stringify(response).length > 500_000) return c.json({ error: 'response is too large' }, 413);
+	promptCache.set(`${userId}:${key}`, { response, createdAt: Date.now() });
 	return c.json({ ok: true, key });
 });

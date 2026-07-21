@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS users (
 	id TEXT PRIMARY KEY,
 	email TEXT UNIQUE,
 	github_id TEXT UNIQUE,
+	password_hash TEXT,
 	created_at INTEGER NOT NULL,
 	plan TEXT NOT NULL DEFAULT 'free',
 	stripe_customer_id TEXT
@@ -62,6 +63,11 @@ CREATE TABLE IF NOT EXISTS telemetry_events (
 );
 CREATE INDEX IF NOT EXISTS idx_tel_kind_ts ON telemetry_events(kind, ts);
 `);
+
+const userColumns = db.pragma('table_info(users)') as Array<{ name: string }>;
+if (!userColumns.some((column) => column.name === 'password_hash')) {
+	db.exec('ALTER TABLE users ADD COLUMN password_hash TEXT');
+}
 
 export interface User { id: string; email: string | null; github_id: string | null; created_at: number; plan: string; stripe_customer_id: string | null; }
 

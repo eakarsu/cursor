@@ -17,13 +17,24 @@ const PRICES: Record<string, { input: number; output: number }> = {
 };
 
 proxy.post('/messages', async (c) => {
+	if (!ANTHROPIC_KEY) { return c.json({ error: 'model proxy is not configured' }, 503); }
 	const userId = c.get('userId') as string;
 	const user = getUser(userId);
 	if (!user) { return c.json({ error: 'user not found' }, 404); }
 	const q = checkQuota(user.id, user.plan);
 	if (!q.ok) { return c.json({ error: 'quota exceeded', remaining: 0 }, 429); }
 
-	const body = await c.req.json();
+	const body = await c.req.json().catch(() => null) as any;
+	if (!body || typeof body !== 'object' || !Array.isArray(body.messages) || body.messages.length === 0 || body.messages.length > 100) {
+		return c.json({ error: 'messages must contain 1 to 100 entries' }, 400);
+	}
+	if (typeof body.model !== 'string' || !(body.model in PRICES)) {
+		return c.json({ error: 'unsupported model' }, 400);
+	}
+	if (JSON.stringify(body).length > 1_000_000) {
+		return c.json({ error: 'request is too large' }, 413);
+	}
+	body.max_tokens = Math.max(1, Math.min(Number(body.max_tokens) || 1024, 8192));
 	const res = await fetch('https://api.anthropic.com/v1/messages', {
 		method: 'POST',
 		headers: {
@@ -32,9 +43,10 @@ proxy.post('/messages', async (c) => {
 			'anthropic-version': '2023-06-01',
 		},
 		body: JSON.stringify(body),
+		signal: AbortSignal.timeout(60_000),
 	});
 	if (!res.ok) {
-		return c.json({ error: 'upstream', detail: await res.text() }, res.status as any);
+		return c.json({ error: 'model provider request failed' }, 502);
 	}
 	const json: any = await res.json();
 	const usage = json.usage ?? {};

@@ -5,6 +5,8 @@ import { authMiddleware } from './auth.js';
 
 const stripeKey = process.env.STRIPE_SECRET_KEY ?? '';
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET ?? '';
+const priceId = process.env.STRIPE_PRO_PRICE_ID ?? '';
+const publicUrl = new URL(process.env.PUBLIC_URL ?? 'http://localhost:8787');
 const stripe = stripeKey ? new Stripe(stripeKey) : null;
 
 export const billing = new Hono();
@@ -13,7 +15,7 @@ billing.use('/portal', authMiddleware);
 billing.use('/checkout', authMiddleware);
 
 billing.post('/checkout', async (c) => {
-	if (!stripe) { return c.json({ error: 'billing disabled' }, 503); }
+	if (!stripe || !priceId) { return c.json({ error: 'billing disabled' }, 503); }
 	const userId = c.get('userId') as string;
 	const user = getUser(userId);
 	if (!user) { return c.json({ error: 'user not found' }, 404); }
@@ -26,9 +28,9 @@ billing.post('/checkout', async (c) => {
 	const session = await stripe.checkout.sessions.create({
 		mode: 'subscription',
 		customer: customerId,
-		line_items: [{ price: process.env.STRIPE_PRO_PRICE_ID!, quantity: 1 }],
-		success_url: `${process.env.PUBLIC_URL}/billing/success`,
-		cancel_url: `${process.env.PUBLIC_URL}/billing/cancel`,
+		line_items: [{ price: priceId, quantity: 1 }],
+		success_url: new URL('/billing/success', publicUrl).toString(),
+		cancel_url: new URL('/billing/cancel', publicUrl).toString(),
 	});
 	return c.json({ url: session.url });
 });
@@ -40,8 +42,8 @@ billing.post('/webhook', async (c) => {
 	let event: Stripe.Event;
 	try {
 		event = stripe.webhooks.constructEvent(raw, sig, webhookSecret);
-	} catch (e: any) {
-		return c.text(`webhook bad sig: ${e?.message}`, 400);
+	} catch {
+		return c.text('invalid webhook signature', 400);
 	}
 	if (event.type === 'checkout.session.completed' || event.type === 'customer.subscription.updated') {
 		const obj: any = event.data.object;

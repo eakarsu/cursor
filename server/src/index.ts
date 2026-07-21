@@ -14,6 +14,7 @@ app.get('/', (c) => c.text('ai-code-server running'));
 app.get('/healthz', (c) => c.json({ ok: true }));
 
 app.route('/auth', auth);
+app.route('/api/auth', auth);
 app.route('/billing', billing);
 app.route('/v1', proxy);
 app.route('/sync', sync);
@@ -22,6 +23,7 @@ app.route('/telemetry', telemetry);
 app.route('/custom', customFeatures);
 
 const port = Number(process.env.PORT ?? 8787);
-serve({ fetch: app.fetch, port }, (info) => {
-	console.log(`ai-code-server listening on http://localhost:${info.port}`);
+const hostname = process.env.HOST ?? '127.0.0.1';
+serve({ fetch: app.fetch, port, hostname }, (info) => {
+	console.log(`ai-code-server listening on http://${hostname}:${info.port}`);
 });
