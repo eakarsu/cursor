@@ -2,9 +2,9 @@
 // Hono router covering: tenant model routing, spend caps, prompt template versioning,
 // privacy redaction, edge cache for deterministic prompts.
 import { Hono } from 'hono';
-import { authMiddleware } from './auth.js';
+import { authMiddleware, type AppEnv } from './auth.js';
 
-export const customFeatures = new Hono();
+export const customFeatures = new Hono<AppEnv>();
 
 customFeatures.use('*', authMiddleware);
 

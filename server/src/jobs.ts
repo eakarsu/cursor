@@ -1,9 +1,9 @@
 import { Hono } from 'hono';
-import { authMiddleware } from './auth.js';
+import { authMiddleware, type AppEnv } from './auth.js';
 import { db } from './db.js';
 import { randomUUID } from 'node:crypto';
 
-export const jobs = new Hono();
+export const jobs = new Hono<AppEnv>();
 jobs.use('*', authMiddleware);
 
 // Minimal queue: jobs are stored in SQLite with a poll API. A real implementation

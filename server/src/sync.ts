@@ -1,8 +1,8 @@
 import { Hono } from 'hono';
-import { authMiddleware } from './auth.js';
+import { authMiddleware, type AppEnv } from './auth.js';
 import { db } from './db.js';
 
-export const sync = new Hono();
+export const sync = new Hono<AppEnv>();
 sync.use('*', authMiddleware);
 
 sync.post('/memory', async (c) => {

@@ -1,9 +1,9 @@
 import { Hono } from 'hono';
-import { authMiddleware } from './auth.js';
+import { authMiddleware, type AppEnv } from './auth.js';
 import { checkQuota, recordUsage } from './quota.js';
 import { getUser } from './db.js';
 
-export const proxy = new Hono();
+export const proxy = new Hono<AppEnv>();
 
 proxy.use('/messages', authMiddleware);
 

@@ -1,8 +1,8 @@
 import { Hono } from 'hono';
-import { authMiddleware } from './auth.js';
+import { authMiddleware, type AppEnv } from './auth.js';
 import { db } from './db.js';
 
-export const telemetry = new Hono();
+export const telemetry = new Hono<AppEnv>();
 telemetry.use('*', authMiddleware);
 
 telemetry.post('/', async (c) => {

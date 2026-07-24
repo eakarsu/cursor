@@ -7,6 +7,7 @@ import { sync } from './sync.js';
 import { jobs } from './jobs.js';
 import { telemetry } from './telemetry.js';
 import { customFeatures } from './customFeatures.js';
+import { runtimeAI } from './runtimeAI.js';
 
 const app = new Hono();
 
@@ -21,6 +22,7 @@ app.route('/sync', sync);
 app.route('/jobs', jobs);
 app.route('/telemetry', telemetry);
 app.route('/custom', customFeatures);
+app.route('/api/runtime-ai', runtimeAI);
 
 const port = Number(process.env.PORT ?? 8787);
 const hostname = process.env.HOST ?? '127.0.0.1';

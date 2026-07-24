@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import Stripe from 'stripe';
 import { db, getUser } from './db.js';
-import { authMiddleware } from './auth.js';
+import { authMiddleware, type AppEnv } from './auth.js';
 
 const stripeKey = process.env.STRIPE_SECRET_KEY ?? '';
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET ?? '';
@@ -9,7 +9,7 @@ const priceId = process.env.STRIPE_PRO_PRICE_ID ?? '';
 const publicUrl = new URL(process.env.PUBLIC_URL ?? 'http://localhost:8787');
 const stripe = stripeKey ? new Stripe(stripeKey) : null;
 
-export const billing = new Hono();
+export const billing = new Hono<AppEnv>();
 
 billing.use('/portal', authMiddleware);
 billing.use('/checkout', authMiddleware);

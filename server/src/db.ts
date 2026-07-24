@@ -62,6 +62,17 @@ CREATE TABLE IF NOT EXISTS telemetry_events (
 	props TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_tel_kind_ts ON telemetry_events(kind, ts);
+CREATE TABLE IF NOT EXISTS runtime_ai_results (
+	id TEXT PRIMARY KEY,
+	user_id TEXT NOT NULL,
+	prompt TEXT NOT NULL,
+	content TEXT NOT NULL,
+	provider TEXT NOT NULL CHECK(provider = 'openrouter'),
+	model TEXT NOT NULL,
+	created_at INTEGER NOT NULL,
+	FOREIGN KEY (user_id) REFERENCES users(id)
+);
+CREATE INDEX IF NOT EXISTS idx_runtime_ai_user_time ON runtime_ai_results(user_id, created_at DESC);
 `);
 
 const userColumns = db.pragma('table_info(users)') as Array<{ name: string }>;

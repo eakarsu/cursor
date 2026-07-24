@@ -6,6 +6,8 @@ import { z } from 'zod';
 import { db, createUser, getUserByGithub, getUser } from './db.js';
 import { verifyPassword } from './password.js';
 
+export type AppEnv = { Variables: { userId: string } };
+
 const jwtSecret = process.env.JWT_SECRET ?? '';
 if (jwtSecret.length < 32 || /change|replace|example/i.test(jwtSecret)) {
 	throw new Error('JWT_SECRET must be a unique value of at least 32 characters');
@@ -19,7 +21,7 @@ if (!['http:', 'https:'].includes(publicUrl.protocol) || publicUrl.username || p
 	throw new Error('PUBLIC_URL must be an HTTP(S) URL without embedded credentials');
 }
 
-export const auth = new Hono();
+export const auth = new Hono<AppEnv>();
 
 function digest(value: string): string {
 	return createHash('sha256').update(value).digest('hex');

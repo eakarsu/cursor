@@ -1,92 +1,35 @@
 #!/usr/bin/env bash
-# Safe launcher for the independently implemented server and the incomplete
-# editor checkout. This script never installs dependencies or kills processes.
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "$0")" && pwd)"
-MODE="${1:-auto}"
-RUNTIME_PORT="${PORT:-${BACKEND_PORT:-}}"
-if [[ $# -gt 0 ]]; then shift; fi
+project_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+for env_file in "$project_dir/.env" "$project_dir/server/.env"; do
+  if [[ -f "$env_file" ]]; then
+    set -a
+    # shellcheck disable=SC1090
+    source "$env_file"
+    set +a
+  fi
+done
+export API_PORT="${API_PORT:-${BACKEND_PORT:-}}"
+export UI_PORT="${UI_PORT:-${FRONTEND_PORT:-}}"
 
-load_server_env() {
-	local env_file="$ROOT/server/.env"
-	if [[ -f "$env_file" ]]; then
-		set -a
-		# shellcheck disable=SC1090
-		source "$env_file"
-		set +a
-	fi
+required() { [[ -n "${!1:-}" ]] || { echo "$1 is required" >&2; exit 1; }; }
+configuration() {
+  for key in DB_PATH JWT_SECRET API_PORT UI_PORT OPENROUTER_API_KEY OPENROUTER_MODEL OPENROUTER_BASE_URL ADMIN_EMAIL ADMIN_PASSWORD; do required "$key"; done
+  [[ ${#JWT_SECRET} -ge 32 ]] || { echo 'JWT_SECRET must contain at least 32 characters' >&2; exit 1; }
+  [[ "$API_PORT" != "$UI_PORT" ]] || { echo 'API_PORT and UI_PORT must differ' >&2; exit 1; }
+}
+start_services() {
+  npm --prefix "$project_dir/server" run create-admin
+  (cd "$project_dir/server" && PORT="$API_PORT" HOST=127.0.0.1 PUBLIC_URL="http://127.0.0.1:$UI_PORT" ALLOW_LOCAL_PASSWORD_LOGIN=true ./scripts/run-compatible-node.sh --enable-source-maps dist/index.js) &
+  server_pid=$!
+  API_PORT="$API_PORT" UI_PORT="$UI_PORT" node "$project_dir/server/scripts/runtime-proxy.mjs" &
+  proxy_pid=$!
+  wait "$server_pid" "$proxy_pid"
 }
 
-start_server() {
-	if [[ ! -f "$ROOT/server/package.json" ]]; then
-		echo "error: server/package.json is missing" >&2
-		exit 1
-	fi
-	if [[ ! -d "$ROOT/server/node_modules" ]]; then
-		echo "error: server dependencies are not installed" >&2
-		echo "review server/README.md, then install them explicitly before launch" >&2
-		exit 1
-	fi
-	if [[ ! "$RUNTIME_PORT" =~ ^[0-9]+$ ]]; then
-		echo "error: PORT or BACKEND_PORT must be an assigned numeric port" >&2
-		exit 2
-	fi
-	if lsof -tiTCP:"$RUNTIME_PORT" -sTCP:LISTEN >/dev/null 2>&1; then
-		echo "error: assigned port $RUNTIME_PORT is already in use; no process was stopped" >&2
-		exit 1
-	fi
-	load_server_env
-	export PORT="$RUNTIME_PORT"
-	export HOST="${HOST:-127.0.0.1}"
-	export PUBLIC_URL="${PUBLIC_URL:-http://127.0.0.1:$RUNTIME_PORT}"
-	if [[ "${NODE_ENV:-development}" != production ]]; then
-		export ALLOW_LOCAL_PASSWORD_LOGIN="${ALLOW_LOCAL_PASSWORD_LOGIN:-true}"
-	fi
-	cd "$ROOT/server"
-	exec npm run dev -- "$@"
-}
-
-start_editor() {
-	local nvmrc="$ROOT/vscode/.nvmrc"
-	local launcher="$ROOT/vscode/scripts/code.sh"
-	local missing=()
-	[[ -f "$nvmrc" ]] || missing+=("vscode/.nvmrc")
-	[[ -x "$launcher" ]] || missing+=("vscode/scripts/code.sh")
-	if (( ${#missing[@]} )); then
-		echo "error: editor checkout is incomplete; missing required paths:" >&2
-		printf '  - %s\n' "${missing[@]}" >&2
-		echo "use './start.sh server' for the available backend, or restore the editor from an authoritative licensed source" >&2
-		exit 1
-	fi
-	if [[ "${ACKNOWLEDGE_UNVERIFIED_SOURCE:-}" != "1" ]]; then
-		echo "error: editor provenance/licensing is unresolved" >&2
-		echo "review PROVENANCE_REQUIRED.md; set ACKNOWLEDGE_UNVERIFIED_SOURCE=1 only in an isolated local review environment" >&2
-		exit 1
-	fi
-
-	export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
-	if [[ -s "$NVM_DIR/nvm.sh" ]]; then
-		# shellcheck disable=SC1091
-		source "$NVM_DIR/nvm.sh"
-		nvm use --delete-prefix --silent "$(<"$nvmrc")" || nvm use --silent "$(<"$nvmrc")"
-	fi
-	cd "$ROOT/vscode"
-	exec "$launcher" "$@"
-}
-
-case "$MODE" in
-	auto)
-		if [[ -x "$ROOT/vscode/scripts/code.sh" && -f "$ROOT/vscode/.nvmrc" ]]; then
-			start_editor "$@"
-		else
-			start_server "$@"
-		fi
-		;;
-	server) start_server "$@" ;;
-	editor) start_editor "$@" ;;
-	*)
-		echo "usage: ./start.sh [auto|server|editor] [arguments...]" >&2
-		exit 2
-		;;
+case "${1:-start}" in
+  check) npm --prefix "$project_dir/server" test && npm --prefix "$project_dir/server" run build ;;
+  start|server|auto) configuration; start_services ;;
+  *) echo 'usage: ./start.sh [check|start]' >&2; exit 2 ;;
 esac
