@@ -23,6 +23,15 @@ if (!['http:', 'https:'].includes(publicUrl.protocol) || publicUrl.username || p
 
 export const auth = new Hono<AppEnv>();
 
+auth.get('/demo-credentials', (c) => {
+	if (process.env.NODE_ENV === 'production') return c.json({ error: 'not found' }, 404);
+	const email = process.env.PROVISION_ADMIN_EMAIL || process.env.ADMIN_EMAIL || '';
+	const password = process.env.PROVISION_ADMIN_PASSWORD || process.env.ADMIN_PASSWORD || '';
+	return email && password
+		? c.json({ email, password }, 200, { 'Cache-Control': 'no-store' })
+		: c.json({ error: 'demo credentials unavailable' }, 503);
+});
+
 function digest(value: string): string {
 	return createHash('sha256').update(value).digest('hex');
 }
