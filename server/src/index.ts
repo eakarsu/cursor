@@ -13,6 +13,8 @@ const app = new Hono();
 
 app.get('/', (c) => c.text('ai-code-server running'));
 app.get('/healthz', (c) => c.json({ ok: true }));
+app.get('/health', (c) => c.json({ status: 'ok' }));
+app.get('/api/health', (c) => c.json({ status: 'ok' }));
 
 app.route('/auth', auth);
 app.route('/api/auth', auth);
